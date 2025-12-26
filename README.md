@@ -1,6 +1,7 @@
 HotelHub Project
 
 SETUP THE HOTELMANAGER APIs TO MANAGE HOTEL,ROOM,INVENTORY
+
 //hotels
 1. POST http://localhost:8080/api/v1/admin/hotels
 {
@@ -31,6 +32,7 @@ SETUP THE HOTELMANAGER APIs TO MANAGE HOTEL,ROOM,INVENTORY
    "active":false
    }
 4. DELETE http://localhost:8080/api/v1/admin/hotels/1
+5. PATCH http://localhost:8080/api/v1/admin/hotels/2
 
 //ROOMS API
 1. POST http://localhost:8080/api/v1/admin/hotels/2/rooms
@@ -43,6 +45,11 @@ SETUP THE HOTELMANAGER APIs TO MANAGE HOTEL,ROOM,INVENTORY
    "photos": ["http://via.placeholder.com/50","http://via.placeholder.com/150"]
 }
 
-2. Get all rooms in hotel GET http://localhost:8080/api/v1/admin/hotels/2/rooms
-3. Get room by id GET http://localhost:8080/api/v1/admin/hotels/2/rooms/1
+2. Get all rooms in hotel
+    GET http://localhost:8080/api/v1/admin/hotels/2/rooms
+3. Get room by id 
+    GET http://localhost:8080/api/v1/admin/hotels/2/rooms/1
+
+//inventory
+
 

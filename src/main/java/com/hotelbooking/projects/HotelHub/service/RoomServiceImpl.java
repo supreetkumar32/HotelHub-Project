@@ -6,6 +6,7 @@ import com.hotelbooking.projects.HotelHub.entity.Room;
 import com.hotelbooking.projects.HotelHub.exception.ResourceNotFoundException;
 import com.hotelbooking.projects.HotelHub.repository.HotelRepository;
 import com.hotelbooking.projects.HotelHub.repository.RoomRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
@@ -21,6 +22,7 @@ public class RoomServiceImpl implements RoomService{
 
     private final RoomRepository roomRepository;
     private final HotelRepository hotelRepository;
+    private final InventoryService inventoryService;
     private final ModelMapper modelMapper;
 
     @Override
@@ -34,7 +36,10 @@ public class RoomServiceImpl implements RoomService{
         room.setHotel(hotel);
         room = roomRepository.save(room);
 
-        //TODO: create inventory as soon as hotel is created and if hotel is active
+        // create inventory as soon as hotel is created and if hotel is active
+        if(hotel.getActive()){
+            inventoryService.initializeRoomForAYear(room);
+        }
 
         return modelMapper.map(room, RoomDto.class);
     }
@@ -61,15 +66,19 @@ public class RoomServiceImpl implements RoomService{
         return modelMapper.map(room, RoomDto.class);
     }
 
+    @Transactional
     @Override
     public void deleteRoomById(Long roomId) {
         log.info("Deleting the room with ID: {}", roomId);
         Room room = roomRepository
                 .findById(roomId)
                 .orElseThrow(() -> new ResourceNotFoundException("Room not found with ID: "+roomId));
+
+        // delete  all future inventory of this room
+        inventoryService.deleteFutureInventories(room);
+        //first delete form inventory then delete the room
         roomRepository.deleteById(roomId);
 
-        //TODO: delete  all future inventory of this room
 
     }
 }

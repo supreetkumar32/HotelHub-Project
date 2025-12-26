@@ -1,6 +1,7 @@
 package com.hotelbooking.projects.HotelHub.entity;
 
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -13,6 +14,7 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @Setter
+@Builder
 @Table(
         uniqueConstraints = @UniqueConstraint(
                 name = "unique_hotel_room_date",
