@@ -50,6 +50,6 @@ SETUP THE HOTELMANAGER APIs TO MANAGE HOTEL,ROOM,INVENTORY
 3. Get room by id 
     GET http://localhost:8080/api/v1/admin/hotels/2/rooms/1
 
-//inventory
+
 
 
