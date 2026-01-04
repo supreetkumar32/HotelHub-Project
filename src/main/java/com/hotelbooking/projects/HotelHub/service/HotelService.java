@@ -1,6 +1,7 @@
 package com.hotelbooking.projects.HotelHub.service;
 
 import com.hotelbooking.projects.HotelHub.dto.HotelDto;
+import com.hotelbooking.projects.HotelHub.dto.HotelInfoDto;
 
 public interface HotelService {
     HotelDto createNewHotel(HotelDto hotelDto);
@@ -12,4 +13,6 @@ public interface HotelService {
     void deleteHotelById(Long id);
 
     void activateHotel(Long hotelId);
+
+    HotelInfoDto getHotelInfoById(Long hotelId);
 }

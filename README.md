@@ -70,4 +70,7 @@ GET http://localhost:8080/api/v1/hotels/search
    "size":4
    }
 
+API FOR hotel details
+GET http://localhost:8080/api/v1/hotels/3/info
+
 
