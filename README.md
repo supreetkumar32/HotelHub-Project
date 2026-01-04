@@ -73,4 +73,18 @@ GET http://localhost:8080/api/v1/hotels/search
 API FOR hotel details
 GET http://localhost:8080/api/v1/hotels/3/info
 
+now building the booking apis(initiate booking api, add guests, initiate payments)
+
+//initialize booking
+added the user manually  in the database in app_user table(1,Supreet@gmail.com,Supreet,Supreet) i didnt created the spring security
+
+POST http://localhost:8080/api/v1/bookings/init
+   {
+   "hotelId":3,
+   "roomId":3,
+   "checkInDate":"2026-01-10",
+   "checkOutDate":"2026-01-13",
+   "roomsCount":2
+   }
+//after running the above post request inventory should be filled with id 3 for thr date 10 to 13
 
