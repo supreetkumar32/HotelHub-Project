@@ -105,3 +105,10 @@ POST : http://localhost:8080/api/v1/bookings/4/addGuests
       }
    ]
 
+
+//decorator design pattern has ctrreated for thr pricing strategies
+and also i have schedule the job after 1 hour
+
+also we have changed the search api
+GET http://localhost:8080/api/v1/hotels/search
+
