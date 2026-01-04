@@ -25,6 +25,7 @@ public class HotelController {
 
     @GetMapping("/{hotelId}")
     public ResponseEntity<HotelDto> getHotelById(@PathVariable Long hotelId) {
+        System.out.println("inside the finding hotel by id method");
         HotelDto hotelDto = hotelService.getHotelById(hotelId);
         return ResponseEntity.ok(hotelDto);
     }

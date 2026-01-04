@@ -50,6 +50,24 @@ SETUP THE HOTELMANAGER APIs TO MANAGE HOTEL,ROOM,INVENTORY
 3. Get room by id 
     GET http://localhost:8080/api/v1/admin/hotels/2/rooms/1
 
+//search 
+Criteris for inventory:
+startDate<= date <=endDate
+city 
+availability :(totalCount-bookedCount)>= roomsCount
+closed=false
 
+Group the response by room and get the response by unique hotels
+
+API for search
+GET http://localhost:8080/api/v1/hotels/search
+   {
+   "city":"Delhi",
+   "startDate":"2026-01-09",
+   "endDate":"2026-01-10",
+   "roomsCount":2,
+   "page":0,
+   "size":4
+   }
 
 
