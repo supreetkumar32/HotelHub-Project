@@ -32,7 +32,7 @@ SETUP THE HOTELMANAGER APIs TO MANAGE HOTEL,ROOM,INVENTORY
    "active":false
    }
 4. DELETE http://localhost:8080/api/v1/admin/hotels/1
-5. PATCH http://localhost:8080/api/v1/admin/hotels/2
+5. PATCH http://localhost:8080/api/v1/admin/hotels/2/activate
 
 //ROOMS API
 1. POST http://localhost:8080/api/v1/admin/hotels/2/rooms
@@ -87,4 +87,21 @@ POST http://localhost:8080/api/v1/bookings/init
    "roomsCount":2
    }
 //after running the above post request inventory should be filled with id 3 for thr date 10 to 13
+
+//ADD GUESTS API
+after the initialize booking, we got the id ,then we put the id in  POST as follows:
+POST : http://localhost:8080/api/v1/bookings/4/addGuests
+
+   [
+      {
+      "name":"Ram",
+      "gender":"MALE",
+      "age":20
+      },
+      {
+      "name":"Shyam",
+      "gender":"MALE",
+      "age":25
+      }
+   ]
 
