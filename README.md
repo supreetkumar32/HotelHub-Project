@@ -112,3 +112,24 @@ and also i have schedule the job after 1 hour
 also we have changed the search api
 GET http://localhost:8080/api/v1/hotels/search
 
+
+SPRING SECURITY
+1. JWTService is almost same.
+
+//REST API
+SIGNUP
+POST http://localhost:8080/api/v1/auth/signup
+{
+"name":"Supreet",
+"email":"Supreet@gmail.com",
+"password":"password"
+}
+
+//LOGIN
+POST http://localhost:8080/api/v1/auth/login
+{
+"email":"Supreet@gmail.com",
+"password":"password"
+}
+//we get the access token in the response of login..check the decode in jwt.io
+
