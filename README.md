@@ -133,3 +133,20 @@ POST http://localhost:8080/api/v1/auth/login
 }
 //we get the access token in the response of login..check the decode in jwt.io
 
+now handling the exceptions
+gave the owner id as same id in app_user in hotel manually
+
+NOW initialize the booling
+POST http://localhost:8080/api/v1/bookings/init
+
+{
+"hotelId":1,
+"roomId":1,
+"checkInDate":"2026-01-21",
+"checkOutDate":"2026-01-23",
+"roomsCount":2
+}
+
+//REFRESH TOKEN (make sure there is refresh token something in localhost in cookies)
+POST http://localhost:8080/api/v1/auth/refresh
+

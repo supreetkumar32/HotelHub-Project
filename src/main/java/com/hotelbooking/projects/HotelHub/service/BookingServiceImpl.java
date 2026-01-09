@@ -6,11 +6,13 @@ import com.hotelbooking.projects.HotelHub.dto.GuestDto;
 import com.hotelbooking.projects.HotelHub.entity.*;
 import com.hotelbooking.projects.HotelHub.entity.enums.BookingStatus;
 import com.hotelbooking.projects.HotelHub.exception.ResourceNotFoundException;
+import com.hotelbooking.projects.HotelHub.exception.UnAuthorisedException;
 import com.hotelbooking.projects.HotelHub.repository.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -89,6 +91,13 @@ public class BookingServiceImpl implements BookingService{
                 .findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found with ID: "+bookingId));
 
+        User user = getCurrentUser();
+
+        //if user owns the booking , tthen the user will able to book it
+        if (!user.equals(booking.getUser())) {
+            throw new UnAuthorisedException("Booking does not belong to this user with id: "+user.getId());
+        }
+
         if (hasBookingExpired(booking)) {
             throw new IllegalStateException("Booking has already expired");
         }
@@ -99,7 +108,7 @@ public class BookingServiceImpl implements BookingService{
 
         for(GuestDto guestDto:guestDtoList){
             Guest guest=modelMapper.map(guestDto, Guest.class);
-            guest.setUser(getCurrentUser());
+            guest.setUser(user);
             guest=guestRepository.save(guest);
             booking.getGuests().add(guest);
         }
@@ -114,8 +123,6 @@ public class BookingServiceImpl implements BookingService{
     }
 
     public User getCurrentUser(){
-        User user=new User();
-        user.setId(1L);//dummy user
-        return user;
+       return (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 }
