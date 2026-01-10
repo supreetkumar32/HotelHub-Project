@@ -20,7 +20,7 @@ public class WebhookController {
     private String endpointSecret;
 
     @PostMapping("/payment")
-    public ResponseEntity<Void> capturePayments(@RequestBody String payload, @RequestHeader("Stripe-Signature") String sigHeader) {\
+    public ResponseEntity<Void> capturePayments(@RequestBody String payload, @RequestHeader("Stripe-Signature") String sigHeader) {
         //using sigHeader we can verify that only stripe is calling the url
         try {
             Event event = Webhook.constructEvent(payload, sigHeader, endpointSecret);
