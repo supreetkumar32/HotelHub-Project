@@ -150,3 +150,151 @@ POST http://localhost:8080/api/v1/bookings/init
 //REFRESH TOKEN (make sure there is refresh token something in localhost in cookies)
 POST http://localhost:8080/api/v1/auth/refresh
 
+//Payment system (stripe)
+https://docs.stripe.com/payments/checkout/how-checkout-works
+i have created the account in stripe.
+take the secret key from https://dashboard.stripe.com/acct_1Snw5iKIowOaoyGO/test/apikeys
+
+after implementing the payment code, now check it:
+Step 1: login
+POST http://localhost:8080/api/v1/auth/login
+{
+"email":"Supreet@gmail.com",
+"password":"password"
+}
+copy the access token and then go to the init booking, in authorisation paste the bearer token
+
+Step 2: init booking
+POST http://localhost:8080/api/v1/bookings/init
+{
+"hotelId":1,
+"roomId":1,
+"checkInDate":"2026-01-21",
+"checkOutDate":"2026-01-23",
+"roomsCount":2
+}
+
+in the data we get the booking id.in the above, we get the id as 2
+{
+"timeStamp": "2026-01-10T17:54:55.5019788",
+"data": {
+"id": 2,
+"roomsCount": 2,
+"checkInDate": "2026-01-21",
+"checkOutDate": "2026-01-23",
+"createdAt": "2026-01-10T17:54:55.024323",
+"updatedAt": "2026-01-10T17:54:55.024323",
+"bookingStatus": "RESERVED",
+"guests": null
+},
+"error": null
+}
+
+STEP 3: ADD GUESTS
+dont forget to add the bearer token
+POST http://localhost:8080/api/v1/bookings/2/addGuests (put the id 2 in the url of add guests)
+[
+{
+"name":"Ram",
+"gender":"MALE",
+"age":20
+},
+{
+"name":"Shyam",
+"gender":"MALE",
+"age":25
+}
+]
+
+output:
+{
+"timeStamp": "2026-01-10T17:59:29.8606911",
+"data": {
+"id": 2,
+"roomsCount": 2,
+"checkInDate": "2026-01-21",
+"checkOutDate": "2026-01-23",
+"createdAt": "2026-01-10T17:54:55.024323",
+"updatedAt": "2026-01-10T17:54:55.024323",
+"bookingStatus": "GUESTS_ADDED",
+"guests": [
+{
+"id": 2,
+"user": {
+"id": 1,
+"email": "Supreet@gmail.com",
+"password": "$2a$10$a/gpBRQcqSaRNBRo7p.2PusteiUXonkry7pQySiF//gP72Tohc4a2",
+"name": "Supreet",
+"roles": [
+"GUEST"
+],
+"authorities": [
+{
+"authority": "ROLE_GUEST"
+}
+],
+"username": "Supreet@gmail.com",
+"enabled": true,
+"credentialsNonExpired": true,
+"accountNonExpired": true,
+"accountNonLocked": true
+},
+"name": "Shyam",
+"gender": "MALE",
+"age": 25
+},
+{
+"id": 1,
+"user": {
+"id": 1,
+"email": "Supreet@gmail.com",
+"password": "$2a$10$a/gpBRQcqSaRNBRo7p.2PusteiUXonkry7pQySiF//gP72Tohc4a2",
+"name": "Supreet",
+"roles": [
+"GUEST"
+],
+"authorities": [
+{
+"authority": "ROLE_GUEST"
+}
+],
+"username": "Supreet@gmail.com",
+"enabled": true,
+"credentialsNonExpired": true,
+"accountNonExpired": true,
+"accountNonLocked": true
+},
+"name": "Ram",
+"gender": "MALE",
+"age": 20
+}
+]
+},
+"error": null
+}
+
+STEP 4:INIT PAYMENT
+POST http://localhost:8080/api/v1/bookings/2/payments (put the id 2 in the url of init payment)
+
+in the output, we get the sessionUrl..we can copy paste in google to see the interface
+interface will open, fill the card information 4242 4242 4242  and other details
+and click on pay button
+we dont have frontend url so it will redirect to backend url
+but we can see our transaction in https://dashboard.stripe.com/test/payments
+
+installed the stripe cli
+open the windows powershell
+
+step 1:stripe --version
+step 2:stripe login
+        it will generate a link...go to that link
+        click on allow access
+
+we have to run the cli and keep  the cli running in order to listening all teh webhook and send the webhook 
+event to the server.
+to do this: run stripe listen --forward-to localhost:8080/api/v1/webhook/payment
+when we run this, we get a webhook secret..copy that and paste it in application.properties
+stripe.webhook.secret= whsec_2a8b7fcf8d6e4a85e5b7797b49fb4311cd1d9c456984dab447d3d3de0a4091c5
+
+now create the webhook controller
+
