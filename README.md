@@ -298,3 +298,14 @@ stripe.webhook.secret= whsec_2a8b7fcf8d6e4a85e5b7797b49fb4311cd1d9c456984dab447d
 
 now create the webhook controller
 
+booking confirmed is implemented ..we can see in the database
+steps:
+1. Log in
+2. Init Booking
+3. Add guests
+4. Init Payments
+5. Cancel booking
+   for cancel booking
+    POST http://localhost:8080/api/v1/bookings/13/cancel (bearer token from login)
+
+

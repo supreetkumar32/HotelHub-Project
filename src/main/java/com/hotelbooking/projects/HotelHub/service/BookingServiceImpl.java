@@ -1,5 +1,6 @@
 package com.hotelbooking.projects.HotelHub.service;
 
+import com.google.gson.JsonObject;
 import com.hotelbooking.projects.HotelHub.dto.BookingDto;
 import com.hotelbooking.projects.HotelHub.dto.BookingRequest;
 import com.hotelbooking.projects.HotelHub.dto.GuestDto;
@@ -8,8 +9,12 @@ import com.hotelbooking.projects.HotelHub.entity.enums.BookingStatus;
 import com.hotelbooking.projects.HotelHub.exception.ResourceNotFoundException;
 import com.hotelbooking.projects.HotelHub.exception.UnAuthorisedException;
 import com.hotelbooking.projects.HotelHub.repository.*;
+import com.stripe.exception.StripeException;
 import com.stripe.model.Event;
+import com.stripe.model.Refund;
+import com.stripe.model.StripeObject;
 import com.stripe.model.checkout.Session;
+import com.stripe.param.RefundCreateParams;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -82,7 +87,7 @@ public class BookingServiceImpl implements BookingService{
                 .checkOutDate(bookingRequest.getCheckOutDate())
                 .user(getCurrentUser())
                 .roomsCount(bookingRequest.getRoomsCount())
-                .amount(BigDecimal.TEN)
+                .amount(BigDecimal.valueOf(1000))
                 .build();
 
         booking=bookingRepository.save(booking);
@@ -128,6 +133,7 @@ public class BookingServiceImpl implements BookingService{
     @Override
     @Transactional
     public String initiatePayments(Long bookingId) {
+        log.info("inside the initiate payment");
         Booking booking = bookingRepository.findById(bookingId).orElseThrow(
                 () -> new ResourceNotFoundException("Booking not found with id: "+bookingId)
         );
@@ -152,9 +158,22 @@ public class BookingServiceImpl implements BookingService{
     @Override
     @Transactional
     public void capturePayment(Event event) {
+        log.info("inside the capture payment");
         if ("checkout.session.completed".equals(event.getType())) {
-            Session session = (Session) event.getDataObjectDeserializer().getObject().orElse(null);
-            if (session == null) return;
+
+            StripeObject stripeObject = event.getData().getObject();
+
+            JsonObject jsonObject =
+                    com.google.gson.JsonParser
+                            .parseString(stripeObject.toJson())
+                            .getAsJsonObject();
+
+            Session session =
+                    Session.GSON.fromJson(jsonObject.toString(), Session.class);
+            if (session == null) {
+                log.error("Stripe session is null after deserialization");
+                return;
+            }
 
             String sessionId = session.getId();
             Booking booking =
@@ -173,6 +192,43 @@ public class BookingServiceImpl implements BookingService{
             log.info("Successfully confirmed the booking for Booking ID: {}", booking.getId());
         } else {
             log.warn("Unhandled event type: {}", event.getType());
+        }
+    }
+
+    @Override
+    @Transactional
+    public void cancelBooking(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId).orElseThrow(
+                () -> new ResourceNotFoundException("Booking not found with id: "+bookingId)
+        );
+        User user = getCurrentUser();
+        if (!user.equals(booking.getUser())) {
+            throw new UnAuthorisedException("Booking does not belong to this user with id: "+user.getId());
+        }
+
+        if(booking.getBookingStatus() != BookingStatus.CONFIRMED) {
+            throw new IllegalStateException("Only confirmed bookings can be cancelled");
+        }
+
+        booking.setBookingStatus(BookingStatus.CANCELLED);
+        bookingRepository.save(booking);
+
+        inventoryRepository.findAndLockReservedInventory(booking.getRoom().getId(), booking.getCheckInDate(),
+                booking.getCheckOutDate(), booking.getRoomsCount());
+
+        inventoryRepository.cancelBooking(booking.getRoom().getId(), booking.getCheckInDate(),
+                booking.getCheckOutDate(), booking.getRoomsCount());
+
+        // handle the refund
+        try {
+            Session session = Session.retrieve(booking.getPaymentSessionId());
+            RefundCreateParams refundParams = RefundCreateParams.builder()
+                    .setPaymentIntent(session.getPaymentIntent())
+                    .build();
+
+            Refund.create(refundParams);
+        } catch (StripeException e) {
+            throw new RuntimeException(e);
         }
     }
 
