@@ -69,12 +69,9 @@ public class BookingServiceImpl implements BookingService{
             throw new IllegalStateException(("Room is not available anymore"));
         }
 
-        //reserve the room or update the bookcount of inventories
-        for(Inventory inventory: inventoryList){
-            inventory.setReservedCount(inventory.getReservedCount() +bookingRequest.getRoomsCount());
-        }
-
-        inventoryRepository.saveAll(inventoryList);
+        // Reserve the room/ update the booked count of inventories
+        inventoryRepository.initBooking(room.getId(), bookingRequest.getCheckInDate(),
+                bookingRequest.getCheckOutDate(), bookingRequest.getRoomsCount());
 
         //TODO: calculate dynamic price
 
