@@ -9,6 +9,7 @@ import com.hotelbooking.projects.HotelHub.entity.enums.BookingStatus;
 import com.hotelbooking.projects.HotelHub.exception.ResourceNotFoundException;
 import com.hotelbooking.projects.HotelHub.exception.UnAuthorisedException;
 import com.hotelbooking.projects.HotelHub.repository.*;
+import com.hotelbooking.projects.HotelHub.strategy.PricingService;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Event;
 import com.stripe.model.Refund;
@@ -40,6 +41,7 @@ public class BookingServiceImpl implements BookingService{
     private final InventoryRepository inventoryRepository;
     private final ModelMapper modelMapper;
     private final CheckoutService checkoutService;
+    private final PricingService pricingService;
 
     @Value("${frontend.url}")
     private String frontendUrl;
@@ -73,7 +75,9 @@ public class BookingServiceImpl implements BookingService{
         inventoryRepository.initBooking(room.getId(), bookingRequest.getCheckInDate(),
                 bookingRequest.getCheckOutDate(), bookingRequest.getRoomsCount());
 
-        //TODO: calculate dynamic price
+        // calculate dynamic price
+        BigDecimal priceForOneRoom = pricingService.calculateTotalPrice(inventoryList);
+        BigDecimal totalPrice = priceForOneRoom.multiply(BigDecimal.valueOf(bookingRequest.getRoomsCount()));
 
         //create the booking
         Booking booking= Booking.builder()
@@ -84,7 +88,7 @@ public class BookingServiceImpl implements BookingService{
                 .checkOutDate(bookingRequest.getCheckOutDate())
                 .user(getCurrentUser())
                 .roomsCount(bookingRequest.getRoomsCount())
-                .amount(BigDecimal.valueOf(1000))
+                .amount(totalPrice)
                 .build();
 
         booking=bookingRepository.save(booking);

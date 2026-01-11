@@ -45,7 +45,7 @@ public class CheckoutServiceImpl implements CheckoutService{
                                     .setPriceData(
                                             SessionCreateParams.LineItem.PriceData.builder()
                                                     .setCurrency("inr")
-                                                    .setUnitAmount(booking.getAmount().multiply(BigDecimal.valueOf(10000)).longValue())
+                                                    .setUnitAmount(booking.getAmount().multiply(BigDecimal.valueOf(100)).longValue())
                                                     .setProductData(
                                                             SessionCreateParams.LineItem.PriceData.ProductData.builder()
                                                                     .setName(booking.getHotel().getName() +" : "+ booking.getRoom().getType())
