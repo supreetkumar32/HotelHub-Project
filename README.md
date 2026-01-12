@@ -361,3 +361,23 @@ PATCH http://localhost:8080/api/v1/users/profile
 2. Get My Profile
 GET http://localhost:8080/api/v1/users/profile
 
+3. Add a guest
+POST http://localhost:8080/api/v1/users/guests
+
+{
+"name":"HarsH",
+"gender":"MALE",
+"age":23
+}
+
+4. Update guest By Id
+PUT http://localhost:8080/api/v1/users/guests/27
+   {
+
+   "name":"Harshit",
+   "gender":"MALE",
+   "age":24
+   }
+
+5. Delete guest By Id
+DELETE http://localhost:8080/api/v1/users/guests/27
