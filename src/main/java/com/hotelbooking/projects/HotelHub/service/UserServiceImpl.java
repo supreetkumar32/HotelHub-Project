@@ -1,10 +1,13 @@
 package com.hotelbooking.projects.HotelHub.service;
 
 import com.hotelbooking.projects.HotelHub.dto.ProfileUpdateRequestDto;
+import com.hotelbooking.projects.HotelHub.dto.UserDto;
 import com.hotelbooking.projects.HotelHub.entity.User;
 import com.hotelbooking.projects.HotelHub.exception.ResourceNotFoundException;
 import com.hotelbooking.projects.HotelHub.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.modelmapper.ModelMapper;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -14,9 +17,11 @@ import static com.hotelbooking.projects.HotelHub.util.AppUtils.getCurrentUser;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserServiceImpl implements UserService, UserDetailsService {
 
     private final UserRepository userRepository;
+    private final ModelMapper modelMapper;
 
     @Override
     public User getUserById(Long id) {
@@ -32,6 +37,13 @@ public class UserServiceImpl implements UserService, UserDetailsService {
         if (profileUpdateRequestDto.getName() != null) user.setName(profileUpdateRequestDto.getName());
 
         userRepository.save(user);
+    }
+
+    @Override
+    public UserDto getMyProfile() {
+        User user = getCurrentUser();
+        log.info("Getting the profile for user with id: {}", user.getId());
+        return modelMapper.map(user, UserDto.class);
     }
 
     @Override

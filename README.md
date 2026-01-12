@@ -314,3 +314,50 @@ frontend can redirect the user to some other page.
 
 creating the admin apis
 
+1. GetAllHotels
+GET http://localhost:8080/api/v1/admin/hotels (having the role of HOTEL_MANAGER)
+
+2. Get All Bookings
+GET http://localhost:8080/api/v1/admin/hotels/1/bookings
+
+3. Generate Report
+GET http://localhost:8080/api/v1/admin/hotels/1/reports
+
+4. Update room by id
+PUT http://localhost:8080/api/v1/admin/hotels/1/rooms/1
+
+{
+"type":"Economical Room",
+"basePrice":80.00,
+"capacity":2,
+"totalCount":60,
+"amenities":["WiFi", "Air Conditioning"],
+"photos": ["http://via.placeholder.com/50","http://via.placeholder.com/150"]
+}
+
+5. Get Inventory By Room Id
+GET http://localhost:8080/api/v1/admin/inventory/rooms/1
+
+6. Update inventory
+PATCH http://localhost:8080/api/v1/admin/inventory/rooms/1
+   {
+   "startDate":"2026-01-05",
+   "endDate":"2026-01-07",
+   "surgeFactor":1.5,
+   "closed":true
+   }
+
+Profile APIs
+
+1. Update My Profile
+PATCH http://localhost:8080/api/v1/users/profile
+
+{
+"name":"Supreet Kumar",
+"dateOfBirth":"2000-10-10",
+"gender":"MALE"
+}
+
+2. Get My Profile
+GET http://localhost:8080/api/v1/users/profile
+
