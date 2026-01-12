@@ -13,6 +13,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.domain.Page;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -22,14 +23,14 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     void deleteByRoom(Room room);
 
     @Query("""
-           SELECT DISTINCT i.hotel
-           FROM Inventory i
-           WHERE i.city= :city
-                AND i.date BETWEEN :startDate AND :endDate 
-                AND i.closed=false
-                AND (i.totalCount - i.bookedCount -i.reservedCount)>= :roomsCount
-           GROUP BY i.hotel, i.room
-           HAVING COUNT(i.date) = :dateCount
+            SELECT DISTINCT i.hotel
+            FROM Inventory i
+            WHERE i.city= :city
+                 AND i.date BETWEEN :startDate AND :endDate 
+                 AND i.closed=false
+                 AND (i.totalCount - i.bookedCount -i.reservedCount)>= :roomsCount
+            GROUP BY i.hotel, i.room
+            HAVING COUNT(i.date) = :dateCount
             """)
     Page<Hotel> findHotelsWithAvailableInventory(
             @Param("city") String city,
@@ -115,4 +116,32 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
                        @Param("numberOfRooms") int numberOfRooms);
 
     List<Inventory> findByHotelAndDateBetween(Hotel hotel, LocalDate startDate, LocalDate endDate);
+
+    List<Inventory> findByRoomOrderByDate(Room room);
+
+    @Modifying
+    @Query("""
+                UPDATE Inventory i
+                SET i.surgeFactor = :surgeFactor,
+                    i.closed = :closed
+                WHERE i.room.id = :roomId
+                  AND i.date BETWEEN :startDate AND :endDate
+            """)
+    void updateInventory(@Param("roomId") Long roomId,
+                         @Param("startDate") LocalDate startDate,
+                         @Param("endDate") LocalDate endDate,
+                         @Param("closed") boolean closed,
+                         @Param("surgeFactor") BigDecimal surgeFactor);
+
+    @Query("""
+                SELECT i
+                FROM Inventory i
+                WHERE i.room.id = :roomId
+                  AND i.date BETWEEN :startDate AND :endDate
+            """)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<Inventory> getInventoryAndLockBeforeUpdate(@Param("roomId") Long roomId,
+                                                    @Param("startDate") LocalDate startDate,
+                                                    @Param("endDate") LocalDate endDate);
+
 }

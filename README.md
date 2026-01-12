@@ -312,3 +312,5 @@ Now we will make an api through which client know the status of booking (we have
 Our frontend can keep calling the api in order to get the current status. Once the status is marked as confirmed, 
 frontend can redirect the user to some other page.
 
+creating the admin apis
+
