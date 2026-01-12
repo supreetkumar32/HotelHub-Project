@@ -308,4 +308,7 @@ steps:
    for cancel booking
     POST http://localhost:8080/api/v1/bookings/13/cancel (bearer token from login)
 
+Now we will make an api through which client know the status of booking (we have to implement polling mechanism)
+Our frontend can keep calling the api in order to get the current status. Once the status is marked as confirmed, 
+frontend can redirect the user to some other page.
 
