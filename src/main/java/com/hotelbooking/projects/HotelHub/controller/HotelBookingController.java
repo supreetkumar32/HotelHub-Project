@@ -31,14 +31,12 @@ public class HotelBookingController {
     }
 
     @PostMapping("/{bookingId}/payments")
-  //  @Operation(summary = "Initiate payments flow for the booking", tags = {"Booking Flow"})
     public ResponseEntity<Map<String,String>> initiatePayment(@PathVariable Long bookingId) {
         String sessionUrl = bookingService.initiatePayments(bookingId);
         return ResponseEntity.ok(Map.of("sessionUrl", sessionUrl));
     }
 
     @PostMapping("/{bookingId}/cancel")
-   // @Operation(summary = "Cancel the booking", tags = {"Booking Flow"})
     public ResponseEntity<Void> cancelBooking(@PathVariable Long bookingId) {
         bookingService.cancelBooking(bookingId);
         return ResponseEntity.noContent().build();

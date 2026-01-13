@@ -7,7 +7,6 @@ import com.hotelbooking.projects.HotelHub.dto.UserDto;
 import com.hotelbooking.projects.HotelHub.service.BookingService;
 import com.hotelbooking.projects.HotelHub.service.GuestService;
 import com.hotelbooking.projects.HotelHub.service.UserService;
-import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -39,6 +38,11 @@ public class UserController {
     @GetMapping("/profile")
     public ResponseEntity<UserDto> getMyProfile() {
         return ResponseEntity.ok(userService.getMyProfile());
+    }
+
+    @GetMapping("/guests")
+    public ResponseEntity<List<GuestDto>> getAllGuests() {
+        return ResponseEntity.ok(guestService.getAllGuests());
     }
 
     @PostMapping("/guests")

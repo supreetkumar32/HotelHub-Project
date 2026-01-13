@@ -382,6 +382,9 @@ PUT http://localhost:8080/api/v1/users/guests/27
 5. Delete guest By Id
 DELETE http://localhost:8080/api/v1/users/guests/27
 
+6. Get all my guests
+GET http://localhost:8080/api/v1/users/guests
+
 swagger api
 added the dependency and hit the url below:
 http://localhost:8080/api/v1/swagger-ui/index.html#/
