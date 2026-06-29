@@ -388,3 +388,148 @@ GET http://localhost:8080/api/v1/users/guests
 swagger api
 added the dependency and hit the url below:
 http://localhost:8080/api/v1/swagger-ui/index.html#/
+
+
+The Refresh Token Problem
+Current Flow (Vulnerable):
+User logs in
+      │
+      ▼
+Server generates refresh token → stored in HttpOnly cookie
+      │
+      ▼
+User calls POST /auth/logout
+      │
+      ▼
+Cookie is cleared from browser ← only client-side deletion
+      │
+      ▼
+Server has NO memory of this token ever existing
+
+The Attack:
+
+Step 1: Attacker intercepts/steals the refresh token
+        (via network sniffing, XSS, shared device, etc.)
+
+Step 2: User logs out → cookie cleared from their browser
+        User thinks they are safe ✅
+
+Step 3: Attacker still has the raw token string
+        Calls POST /auth/refresh with that token directly
+        (doesn't need the cookie, just the token value)
+
+Step 4: Server checks:
+        - Is signature valid? ✅
+        - Is it expired? ✅ (6 months remaining)
+        - Is it revoked? ← THIS CHECK DOES NOT EXIST
+
+Step 5: Server returns a fresh access token to the attacker
+        Attacker now has full account access for 6 months
+        User has no idea
+
+What was built — Refresh Token Revocation
+The Problem (before):
+User logs out → only cookie was cleared from browser
+Attacker with stolen token → calls /auth/refresh → gets new access token ❌
+Server had no memory of which tokens are valid or revoked
+
+The Solution (after):
+User logs out → token saved to DB blocklist + cookie cleared
+Attacker with stolen token → calls /auth/refresh → DB check fails → 401 ❌
+
+Explaination:
+1. RevokedToken.java (new entity)
+Creates a new table revoked_tokens in PostgreSQL automatically:
+
+revoked_tokens table:
+  token      → the full refresh token string (Primary Key)
+  expiresAt  → when the token would naturally expire (6 months)
+  revokedAt  → when the user logged out
+
+2. RevokedTokenRepository.java (new repository)
+Two operations:
+existsByToken(token)         // checks if token is in blocklist → used on /auth/refresh
+deleteExpiredTokens(now)     // removes old rows → used by cleanup job
+
+3. RevokedTokenCleanupService.java (new scheduled job)
+Runs every day at midnight (0 0 0 * * *)
+  → DELETE FROM revoked_tokens WHERE expiresAt < NOW()
+
+Why needed?
+  Tokens expire after 6 months naturally.
+  After expiry, keeping them in DB wastes space.
+  This job auto-removes them — keeps the table lean.
+
+4. JWTService.java (added one method)
+getExpiryFromToken(token)
+  → reads the expiration date from inside the JWT
+  → needed so we know what expiresAt to store in revoked_tokens
+
+5. AuthService.java (2 methods updated),
+logout() — before vs after:
+
+// BEFORE — only cleared cookie
+public void logout(HttpServletResponse response) {
+    // just expired the cookie
+}
+
+// AFTER — blocklists token + clears cookie
+public void logout(String refreshToken, HttpServletResponse response) {
+    // 1. Save token to revoked_tokens DB table
+    revokedTokenRepository.save(RevokedToken.builder()
+        .token(refreshToken)
+        .expiresAt(jwtService.getExpiryFromToken(refreshToken))
+        .build());
+
+    // 2. Clear cookie from browser
+    Cookie expiredCookie = new Cookie("refreshToken", null);
+    expiredCookie.setMaxAge(0);
+    response.addCookie(expiredCookie);
+}
+
+refreshToken() — before vs after:
+// BEFORE — no revocation check
+public String refreshToken(String refreshToken) {
+    Long id = jwtService.getUserIdFromToken(refreshToken);
+    ...generate token...
+}
+
+// AFTER — checks blocklist first
+public String refreshToken(String refreshToken) {
+    if (revokedTokenRepository.existsByToken(refreshToken)) {
+        throw new RuntimeException("Token revoked. Please login again.");  // → 401
+    }
+    Long id = jwtService.getUserIdFromToken(refreshToken);
+    ...generate token...
+}
+
+6. AuthController.java (logout endpoint updated)
+// BEFORE — didn't pass refresh token
+public ResponseEntity<Void> logout(HttpServletResponse response) {
+    authService.logout(response);
+}
+
+// AFTER — extracts refresh token from cookie and passes it
+public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
+    String refreshToken = // extract from cookie
+    authService.logout(refreshToken, response);  // ← now revokes it
+}
+
+POST /auth/login
+  → access token (10 min) + refresh token cookie (6 months)
+
+POST /auth/logout  (with Bearer access token)
+  → refresh token extracted from cookie
+  → saved to revoked_tokens table
+  → cookie cleared from browser
+
+POST /auth/refresh  (attacker tries with old token)
+  → existsByToken() → found in DB
+  → throws exception → 401 Unauthorized ✅
+  → attacker is blocked permanently
+
+
+
+
+
+

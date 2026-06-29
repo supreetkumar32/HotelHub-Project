@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Date;
 
 @Service
@@ -49,6 +52,16 @@ public class JWTService {
                 .parseSignedClaims(token)
                 .getPayload();
         return Long.valueOf(claims.getSubject());
+    }
+
+    public LocalDateTime getExpiryFromToken(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(getSecretKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+        Instant instant = claims.getExpiration().toInstant();
+        return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
     }
 
 }

@@ -3,9 +3,11 @@ package com.hotelbooking.projects.HotelHub.security;
 import com.hotelbooking.projects.HotelHub.dto.LoginDto;
 import com.hotelbooking.projects.HotelHub.dto.SignUpRequestDto;
 import com.hotelbooking.projects.HotelHub.dto.UserDto;
+import com.hotelbooking.projects.HotelHub.entity.RevokedToken;
 import com.hotelbooking.projects.HotelHub.entity.User;
 import com.hotelbooking.projects.HotelHub.entity.enums.Role;
 import com.hotelbooking.projects.HotelHub.exception.ResourceNotFoundException;
+import com.hotelbooking.projects.HotelHub.repository.RevokedTokenRepository;
 import com.hotelbooking.projects.HotelHub.repository.UserRepository;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
@@ -17,6 +19,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 @Service
@@ -28,6 +31,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JWTService jwtService;
+    private final RevokedTokenRepository revokedTokenRepository;
 
     public UserDto signUp(SignUpRequestDto signUpRequestDto) {
 
@@ -60,18 +64,30 @@ public class AuthService {
     }
 
     public String refreshToken(String refreshToken) {
-        Long id = jwtService.getUserIdFromToken(refreshToken);
+        if (revokedTokenRepository.existsByToken(refreshToken)) {
+            throw new RuntimeException("Refresh token has been revoked. Please login again.");
+        }
 
-        User user = userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found with id: "+id));
+        Long id = jwtService.getUserIdFromToken(refreshToken);
+        User user = userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
         return jwtService.generateAccessToken(user);
     }
 
-    public void logout(HttpServletResponse response) {
+    public void logout(String refreshToken, HttpServletResponse response) {
+        // Blocklist the refresh token in DB so it can never be reused
+        if (refreshToken != null && !refreshToken.isBlank() && !revokedTokenRepository.existsByToken(refreshToken)) {
+            LocalDateTime expiresAt = jwtService.getExpiryFromToken(refreshToken);
+            revokedTokenRepository.save(RevokedToken.builder()
+                    .token(refreshToken)
+                    .expiresAt(expiresAt)
+                    .build());
+        }
+
+        // Clear the cookie from browser
         Cookie expiredCookie = new Cookie("refreshToken", null);
         expiredCookie.setHttpOnly(true);
         expiredCookie.setMaxAge(0);
         expiredCookie.setPath("/");
         response.addCookie(expiredCookie);
     }
-
 }

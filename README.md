@@ -49,6 +49,7 @@ The system implements a **dynamic pricing engine** that adjusts room prices in r
 ### System / Background
 - Hourly Spring Scheduler cron job recalculates dynamic prices for all hotels in batches
 - Every-10-minute cron job releases inventory from expired unpaid bookings and marks them `EXPIRED`
+- Daily cron job purges expired rows from `revoked_tokens` table to keep DB lean
 - Stripe webhook listener captures payment confirmation and drives booking state
 - Pessimistic locking on inventory prevents race conditions during concurrent bookings
 - Pre-aggregated `HotelMinPrice` table enables fast hotel search without complex joins
@@ -133,6 +134,7 @@ signup / login / refresh / logout]
     subgraph Scheduler
         Cron[PricingUpdateService\nCron Every Hour\nBatch 100 hotels]
         Cleanup[BookingCleanupService\nCron Every 10 Min\nRelease Expired Reservations]
+        TokenCleanup[RevokedTokenCleanupService\nCron Daily Midnight\nPurge Expired Revoked Tokens]
     end
 
     subgraph Repositories
@@ -140,7 +142,7 @@ signup / login / refresh / logout]
     end
 
     subgraph Database
-        DB[(PostgreSQL\napp_user / hotel / room\ninventory / booking\nguest / hotel_min_price)]
+        DB[(PostgreSQL\napp_user / hotel / room\ninventory / booking\nguest / hotel_min_price\nrevoked_tokens)]
     end
 
     subgraph External
@@ -149,7 +151,8 @@ signup / login / refresh / logout]
     end
 
     Auth -->|signup / login / refresh| AuthSvc
-    Auth -->|logout - clear cookie| AuthSvc
+    Auth -->|logout - blocklist + clear cookie| AuthSvc
+    TokenCleanup -->|deleteExpiredTokens| Repos
     Browse --> InvSvc
     Booking --> BookingSvc
     Admin --> HotelSvc
@@ -297,7 +300,8 @@ Every HTTP request passes through `JWTAuthFilter`:
 
 ### Additional Security Measures
 - **BCrypt** password hashing for stored passwords
-- **Logout endpoint** (`POST /auth/logout`) — clears the `HttpOnly` refresh token cookie server-side; access token expires naturally after 10 minutes
+- **Logout endpoint** (`POST /auth/logout`) — blocklists the refresh token in the `revoked_tokens` DB table and clears the `HttpOnly` cookie; subsequent `/auth/refresh` calls with the same token return `401`
+- **Refresh token revocation** — `POST /auth/refresh` checks the `revoked_tokens` table before issuing a new access token; stolen tokens are rejected immediately after logout
 - **Stripe webhook signature validation** — prevents spoofed payment events
 - **Ownership validation** — users can only access/modify their own bookings; managers can only manage their own hotels
 - **Stateless sessions** — no server-side session storage (CSRF disabled)
@@ -318,6 +322,7 @@ Every HTTP request passes through `JWTAuthFilter`:
 | `Guest` | Individual guests within a booking |
 | `HotelMinPrice` | Denormalized minimum price per hotel per date for fast search |
 | `HotelContactInfo` | Embedded contact details (address, email, phone, location) |
+| `RevokedToken` | Blocklisted refresh tokens — checked on every `/auth/refresh` call |
 
 ### Entity Relationship Diagram
 
