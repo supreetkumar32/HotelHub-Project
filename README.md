@@ -116,7 +116,8 @@ flowchart TD
     end
 
     subgraph Services
-        AuthSvc[AuthService + JWTService]
+        AuthSvc[AuthService + JWTService
+signup / login / refresh / logout]
         BookingSvc[BookingServiceImpl]
         CheckoutSvc[CheckoutServiceImpl]
         HotelSvc[HotelServiceImpl]
@@ -147,7 +148,8 @@ flowchart TD
         NagerAPI[Nager.Date API\nIndian Public Holidays]
     end
 
-    Auth --> AuthSvc
+    Auth -->|signup / login / refresh| AuthSvc
+    Auth -->|logout - clear cookie| AuthSvc
     Browse --> InvSvc
     Booking --> BookingSvc
     Admin --> HotelSvc
@@ -289,11 +291,13 @@ Every HTTP request passes through `JWTAuthFilter`:
 | `/api/v1/admin/**` | `ROLE_HOTEL_MANAGER` |
 | `/api/v1/bookings/**` | Any authenticated user |
 | `/api/v1/users/**` | Any authenticated user |
+| `/api/v1/auth/logout` | Any authenticated user |
 | `/api/v1/auth/**` | Public |
 | `/api/v1/hotels/**` (browse) | Public |
 
 ### Additional Security Measures
 - **BCrypt** password hashing for stored passwords
+- **Logout endpoint** (`POST /auth/logout`) — clears the `HttpOnly` refresh token cookie server-side; access token expires naturally after 10 minutes
 - **Stripe webhook signature validation** — prevents spoofed payment events
 - **Ownership validation** — users can only access/modify their own bookings; managers can only manage their own hotels
 - **Stateless sessions** — no server-side session storage (CSRF disabled)
@@ -463,6 +467,7 @@ Available rooms = `totalCount - bookedCount - reservedCount`
 | POST | `/auth/signup` | Register a new user | No |
 | POST | `/auth/login` | Login and receive access + refresh tokens | No |
 | POST | `/auth/refresh` | Get a new access token using refresh token | No |
+| POST | `/auth/logout` | Clear refresh token cookie and invalidate session | Yes |
 
 ### Hotel Browse (`/api/v1`)
 

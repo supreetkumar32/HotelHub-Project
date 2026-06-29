@@ -7,6 +7,8 @@ import com.hotelbooking.projects.HotelHub.entity.User;
 import com.hotelbooking.projects.HotelHub.entity.enums.Role;
 import com.hotelbooking.projects.HotelHub.exception.ResourceNotFoundException;
 import com.hotelbooking.projects.HotelHub.repository.UserRepository;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -64,5 +66,12 @@ public class AuthService {
         return jwtService.generateAccessToken(user);
     }
 
+    public void logout(HttpServletResponse response) {
+        Cookie expiredCookie = new Cookie("refreshToken", null);
+        expiredCookie.setHttpOnly(true);
+        expiredCookie.setMaxAge(0);
+        expiredCookie.setPath("/");
+        response.addCookie(expiredCookie);
+    }
 
 }
