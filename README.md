@@ -92,6 +92,80 @@ Repository Layer        ← Spring Data JPA repositories, custom JPQL queries
   Database (PostgreSQL) ← Persistent storage with pessimistic locking support
 ```
 
+### Detailed View:
+
+```mermaid
+flowchart TD
+    Client([Client / Postman]) --> JWTFilter
+
+    subgraph Security
+        JWTFilter[JWTAuthFilter\nValidate Bearer Token]
+        RBAC[WebSecurityConfig\nRBAC Rules]
+        JWTFilter --> RBAC
+    end
+
+    RBAC --> Controllers
+
+    subgraph Controllers
+        Auth[AuthController]
+        Browse[HotelBrowseController]
+        Booking[HotelBookingController]
+        Admin[HotelController\nRoomAdminController\nInventoryController]
+        Webhook[WebhookController]
+    end
+
+    subgraph Services
+        AuthSvc[AuthService + JWTService]
+        BookingSvc[BookingServiceImpl]
+        CheckoutSvc[CheckoutServiceImpl]
+        HotelSvc[HotelServiceImpl]
+        InvSvc[InventoryServiceImpl]
+        HolidaySvc[HolidayService\nNager.Date API Cache]
+    end
+
+    subgraph PricingEngine["Pricing Engine - Decorator Pattern"]
+        direction LR
+        Base[Base] --> Surge[Surge\nx factor] --> Occ[Occupancy\n+20%] --> Urg[Urgency\n+15%] --> Hol[Holiday\n+25%]
+    end
+
+    subgraph Scheduler
+        Cron[PricingUpdateService\nCron Every Hour\nBatch 100 hotels]
+    end
+
+    subgraph Repositories
+        Repos[(Spring Data JPA\nPessimistic Lock\nModifying Queries)]
+    end
+
+    subgraph Database
+        DB[(PostgreSQL\napp_user / hotel / room\ninventory / booking\nguest / hotel_min_price)]
+    end
+
+    subgraph External
+        Stripe[Stripe API\nCheckout + Refunds]
+        NagerAPI[Nager.Date API\nIndian Public Holidays]
+    end
+
+    Auth --> AuthSvc
+    Browse --> InvSvc
+    Booking --> BookingSvc
+    Admin --> HotelSvc
+    Webhook -->|Payment Event| BookingSvc
+
+    BookingSvc --> CheckoutSvc
+    BookingSvc --> PricingEngine
+    InvSvc --> PricingEngine
+    Cron --> PricingEngine
+    Cron --> InvSvc
+    PricingEngine --> HolidaySvc
+
+    AuthSvc & BookingSvc & HotelSvc & InvSvc --> Repos
+    Repos --> Database
+
+    CheckoutSvc <-->|Session / Refund| Stripe
+    Stripe -->|Webhook| Webhook
+    HolidaySvc -->|Fetch once per year| NagerAPI
+```
+
 ### Cross-Cutting Concerns
 - **Security**: `JWTAuthFilter` intercepts every request before reaching the controller
 - **Exception Handling**: `GlobalExceptionHandler` (`@ControllerAdvice`) handles all exceptions centrally
