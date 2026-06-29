@@ -57,7 +57,7 @@ The system implements a **dynamic pricing engine** that adjusts room prices in r
 ## Tech Stack
 
 | Layer | Technology |
-
+|---|---|
 | Language | Java 17 |
 | Framework | Spring Boot 3 |
 | Security | Spring Security, JWT (jjwt 0.12.6) |
@@ -177,7 +177,7 @@ Every HTTP request passes through `JWTAuthFilter`:
 ### Role-Based Access Control (RBAC)
 
 | Route Pattern | Required Role |
-
+|---|---|
 | `/api/v1/admin/**` | `ROLE_HOTEL_MANAGER` |
 | `/api/v1/bookings/**` | Any authenticated user |
 | `/api/v1/users/**` | Any authenticated user |
@@ -197,7 +197,7 @@ Every HTTP request passes through `JWTAuthFilter`:
 ### Core Entities
 
 | Entity | Purpose |
-
+|---|---|
 | `User` | Registered users — both Guests and Hotel Managers |
 | `Hotel` | Hotel properties owned by a Manager |
 | `Room` | Room types within a hotel (Single, Double, Suite, etc.) |
@@ -351,7 +351,7 @@ Available rooms = `totalCount - bookedCount - reservedCount`
 ### Authentication (`/api/v1/auth`)
 
 | Method | Endpoint | Description | Auth Required |
-
+|---|---|---|---|
 | POST | `/auth/signup` | Register a new user | No |
 | POST | `/auth/login` | Login and receive access + refresh tokens | No |
 | POST | `/auth/refresh` | Get a new access token using refresh token | No |
@@ -359,14 +359,14 @@ Available rooms = `totalCount - bookedCount - reservedCount`
 ### Hotel Browse (`/api/v1`)
 
 | Method | Endpoint | Description | Auth Required |
-
+|---|---|---|---|
 | GET | `/hotels/search` | Search hotels by city, dates, and room count | No |
 | GET | `/hotels/{id}/info` | Get full hotel details with rooms and pricing | No |
 
 ### Booking (`/api/v1/bookings`)
 
 | Method | Endpoint | Description | Auth Required |
-
+|---|---|---|---|
 | POST | `/bookings/init` | Initialize booking and reserve inventory | Yes |
 | POST | `/bookings/{id}/addGuests` | Add guest details to a booking | Yes |
 | POST | `/bookings/{id}/payments` | Create Stripe checkout session | Yes |
@@ -376,7 +376,7 @@ Available rooms = `totalCount - bookedCount - reservedCount`
 ### Hotel Admin (`/api/v1/admin/hotels`) — `ROLE_HOTEL_MANAGER` only
 
 | Method | Endpoint | Description |
-
+|---|---|---|
 | POST | `/admin/hotels` | Create a new hotel |
 | GET | `/admin/hotels` | List all hotels managed by current user |
 | GET | `/admin/hotels/{id}` | Get hotel details |
@@ -394,14 +394,14 @@ Available rooms = `totalCount - bookedCount - reservedCount`
 ### Inventory Admin (`/api/v1/admin/inventory`) — `ROLE_HOTEL_MANAGER` only
 
 | Method | Endpoint | Description |
-
+|---|---|---|
 | GET | `/admin/inventory/rooms/{roomId}` | View daily inventory for a room |
 | PATCH | `/admin/inventory/rooms/{roomId}` | Update surge factor or close specific dates |
 
 ### Webhook (`/webhook`)
 
 | Method | Endpoint | Description |
-
+|---|---|---|
 | POST | `/webhook/payment` | Stripe webhook for payment confirmation |
 
 ---
