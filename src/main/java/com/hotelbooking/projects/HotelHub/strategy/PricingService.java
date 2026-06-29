@@ -1,22 +1,26 @@
 package com.hotelbooking.projects.HotelHub.strategy;
 
 import com.hotelbooking.projects.HotelHub.entity.Inventory;
+import com.hotelbooking.projects.HotelHub.service.HolidayService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class PricingService {
 
-    public BigDecimal calculateDynamicPricing(Inventory inventory){
-        PricingStrategy pricingStrategy=new BasePricingStrategy();
+    private final HolidayService holidayService;
 
-        //apply the additional strategies
-        pricingStrategy=new SurgePricingStrategy(pricingStrategy);
-        pricingStrategy= new OccupancyPricingStrategy(pricingStrategy);
-        pricingStrategy= new UrgencyPricingStrategy(pricingStrategy);
-        pricingStrategy= new HolidayPricingStrategy(pricingStrategy);
+    public BigDecimal calculateDynamicPricing(Inventory inventory){
+        PricingStrategy pricingStrategy = new BasePricingStrategy();
+
+        pricingStrategy = new SurgePricingStrategy(pricingStrategy);
+        pricingStrategy = new OccupancyPricingStrategy(pricingStrategy);
+        pricingStrategy = new UrgencyPricingStrategy(pricingStrategy);
+        pricingStrategy = new HolidayPricingStrategy(pricingStrategy, holidayService);
 
         return pricingStrategy.calculatePrice(inventory);
     }

@@ -117,7 +117,7 @@ Occupancy Pricing Strategy   ← +20% if room occupancy exceeds 80%
 Urgency Pricing Strategy     ← +15% if check-in is within the next 7 days
     │
     ▼
-Holiday Pricing Strategy     ← +25% on public/national holidays
+Holiday Pricing Strategy     ← +25% on public/national holidays (via Nager.Date API)
     │
     ▼
 Final Price per Night
@@ -126,6 +126,18 @@ Final Price per Night
 **Total Booking Amount** = Sum of (daily price × number of rooms) across all nights in the booking window.
 
 Prices are **recalculated hourly** by a background `@Scheduled` cron job that processes all hotels in batches of 100 and updates both the `Inventory` table and the denormalized `HotelMinPrice` table.
+
+### Holiday Detection — `HolidayService`
+
+The `HolidayService` powers the `HolidayPricingStrategy` using the **[Nager.Date API](https://date.nager.at)** — a free, no-key-required public holiday API supporting India (`IN`) and all other countries.
+
+| Feature | Detail |
+|---|---|
+| API endpoint | `https://date.nager.at/api/v3/PublicHolidays/{year}/IN` |
+| API key required | No |
+| Cache strategy | `ConcurrentHashMap` keyed by year — fetched once per year, reused for all calculations |
+| Fail-safe | If API is unreachable, returns empty set — no holiday pricing applied, no exception thrown |
+| Country | India (`IN`) — configurable by changing the country code |
 
 ---
 
