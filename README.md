@@ -1,390 +1,355 @@
-HotelHub Project
+# HotelHub - Hotel Booking System
 
-SETUP THE HOTELMANAGER APIs TO MANAGE HOTEL,ROOM,INVENTORY
+## Table of Contents
 
-//hotels
-1. POST http://localhost:8080/api/v1/admin/hotels
-{
-"name":"Hotel Lotus",
-"city":"Delhi",
-"contactInfo":{
-"address": "Central Delhi",
-"email":"hello@lotushotels.com",
-"phoneNumber":"8643565456",
-"location":"74.2381,28.43124"
-},
-"amenities":["AC","Lake view","Pool Area"],
-"photos":["http://via.placeholder.com/50"]
-}
-2. GET http://localhost:8080/api/v1/admin/hotels/1
-3. PUT http://localhost:8080/api/v1/admin/hotels/1
-   {
-   "name":"Hotel Lotus",
-   "city":"Delhi",
-   "contactInfo":{
-   "address": "Central Delhi",
-   "email":"hello@lotushotels.com",
-   "phoneNumber":"8643565456",
-   "location":"74.2381,28.43124"
-   },
-   "amenities":["Lake view","Pool Area"],
-   "photos":["http://via.placeholder.com/50"],
-   "active":false
-   }
-4. DELETE http://localhost:8080/api/v1/admin/hotels/1
-5. PATCH http://localhost:8080/api/v1/admin/hotels/2/activate
+- [Project Overview](#project-overview)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [System Architecture](#system-architecture)
+- [Dynamic Pricing Engine](#dynamic-pricing-engine)
+- [Booking Lifecycle](#booking-lifecycle)
+- [Security Design](#security-design)
+- [Database Design](#database-design)
+- [API Endpoints](#api-endpoints)
+- [Design Patterns Used](#design-patterns-used)
+- [Getting Started](#getting-started)
+- [Configuration](#configuration)
+- [Known Limitations & Future Improvements](#known-limitations--future-improvements)
+- [Author](#author)
 
-//ROOMS API
-1. POST http://localhost:8080/api/v1/admin/hotels/2/rooms
-   {
-   "type":"Single Room",
-   "basePrice":40.00,
-   "capacity":2,
-   "totalCount":40,
-   "amenities":["WiFi", "Air Conditioning", "Mini Bar"],
-   "photos": ["http://via.placeholder.com/50","http://via.placeholder.com/150"]
-}
+---
 
-2. Get all rooms in hotel
-    GET http://localhost:8080/api/v1/admin/hotels/2/rooms
-3. Get room by id 
-    GET http://localhost:8080/api/v1/admin/hotels/2/rooms/1
+## Project Overview
 
-//search 
-Criteris for inventory:
-startDate<= date <=endDate
-city 
-availability :(totalCount-bookedCount)>= roomsCount
-closed=false
+HotelHub is a full-featured hotel booking backend system that supports two types of users — **Hotel Managers** and **Guests**. Hotel Managers can onboard their properties, manage room inventory, configure pricing, and view revenue reports. Guests can search hotels, book rooms, add guest details, complete payments via Stripe, and cancel bookings with automatic refunds.
 
-Group the response by room and get the response by unique hotels
+The system implements a **dynamic pricing engine** that adjusts room prices in real time based on occupancy, urgency, surge demand, and holidays — recalculated automatically every hour via a scheduled cron job.
 
-API for search
-GET http://localhost:8080/api/v1/hotels/search
-   {
-   "city":"Delhi",
-   "startDate":"2026-01-09",
-   "endDate":"2026-01-10",
-   "roomsCount":2,
-   "page":0,
-   "size":4
-   }
+---
 
-API FOR hotel details
-GET http://localhost:8080/api/v1/hotels/3/info
+## Features
 
-now building the booking apis(initiate booking api, add guests, initiate payments)
+### Guest (Customer)
+- Register and login with secure JWT authentication
+- Search hotels by city, check-in/check-out date, and room count
+- View hotel details and available rooms with dynamic prices
+- Initialize a room booking (inventory reserved immediately)
+- Add guest details to a booking
+- Complete payment via Stripe Checkout
+- Cancel a confirmed booking with automatic Stripe refund
+- View real-time booking status
 
-//initialize booking
-added the user manually  in the database in app_user table(1,Supreet@gmail.com,Supreet,Supreet) i didnt created the spring security
+### Hotel Manager (Admin)
+- Create, update, and delete hotels with contact info and amenities
+- Add, update, and delete rooms with type, capacity, and pricing
+- Manage daily room inventory — set surge factor and close specific dates
+- View all bookings for a managed hotel
+- Generate revenue reports filtered by date range
 
-POST http://localhost:8080/api/v1/bookings/init
-   {
-   "hotelId":3,
-   "roomId":3,
-   "checkInDate":"2026-01-10",
-   "checkOutDate":"2026-01-13",
-   "roomsCount":2
-   }
-//after running the above post request inventory should be filled with id 3 for thr date 10 to 13
+### System / Background
+- Hourly Spring Scheduler cron job recalculates dynamic prices for all hotels in batches
+- Stripe webhook listener captures payment confirmation and drives booking state
+- Pessimistic locking on inventory prevents race conditions during concurrent bookings
+- Pre-aggregated `HotelMinPrice` table enables fast hotel search without complex joins
 
-//ADD GUESTS API
-after the initialize booking, we got the id ,then we put the id in  POST as follows:
-POST : http://localhost:8080/api/v1/bookings/4/addGuests
+---
 
-   [
-      {
-      "name":"Ram",
-      "gender":"MALE",
-      "age":20
-      },
-      {
-      "name":"Shyam",
-      "gender":"MALE",
-      "age":25
-      }
-   ]
+## Tech Stack
+
+| Layer | Technology |
+
+| Language | Java 17 |
+| Framework | Spring Boot 3 |
+| Security | Spring Security, JWT (jjwt 0.12.6) |
+| Database | PostgreSQL |
+| ORM | Spring Data JPA, Hibernate |
+| Payment | Stripe Java SDK (v28.2.0) |
+| Scheduling | Spring Scheduler (`@Scheduled`) |
+| API Documentation | SpringDoc OpenAPI / Swagger UI (v2.8.3) |
+| Object Mapping | ModelMapper (v3.2.2) |
+| Utilities | Lombok, Gson |
+| Build Tool | Maven |
+
+---
+
+## System Architecture
+
+The project follows a standard **layered architecture**:
+
+```
+Client Request
+      │
+      ▼
+ Controller Layer       ← Handles HTTP requests, input validation, response wrapping
+      │
+      ▼
+  Service Layer         ← Business logic, state transitions, pricing, orchestration
+      │
+      ▼
+Repository Layer        ← Spring Data JPA repositories, custom JPQL queries
+      │
+      ▼
+  Database (PostgreSQL) ← Persistent storage with pessimistic locking support
+```
+
+### Cross-Cutting Concerns
+- **Security**: `JWTAuthFilter` intercepts every request before reaching the controller
+- **Exception Handling**: `GlobalExceptionHandler` (`@ControllerAdvice`) handles all exceptions centrally
+- **Response Wrapping**: `GlobalResponseHandler` wraps all successful responses in a unified `ApiResponse<T>` structure
+- **Pricing**: `PricingService` applies a chain of decorator strategies at booking time and via scheduled job
+
+---
+
+## Dynamic Pricing Engine
+
+The pricing engine uses the **Decorator Pattern** to compose multiple pricing strategies in sequence. Each strategy wraps the previous one and applies a multiplier if its condition is met.
+
+```
+Base Price
+    │
+    ▼
+Surge Pricing Strategy       ← Manual multiplier set by hotel manager per inventory date
+    │
+    ▼
+Occupancy Pricing Strategy   ← +20% if room occupancy exceeds 80%
+    │
+    ▼
+Urgency Pricing Strategy     ← +15% if check-in is within the next 7 days
+    │
+    ▼
+Holiday Pricing Strategy     ← +25% on public/national holidays
+    │
+    ▼
+Final Price per Night
+```
+
+**Total Booking Amount** = Sum of (daily price × number of rooms) across all nights in the booking window.
+
+Prices are **recalculated hourly** by a background `@Scheduled` cron job that processes all hotels in batches of 100 and updates both the `Inventory` table and the denormalized `HotelMinPrice` table.
+
+---
+
+## Booking Lifecycle
+
+Every booking moves through a well-defined state machine enforced at the service layer:
+
+```
+  [POST /bookings/init]
+         │
+         ▼
+      RESERVED          ← Inventory reserved with pessimistic lock; 15-min window to complete
+         │
+  [POST /bookings/{id}/addGuests]
+         │
+         ▼
+    GUESTS_ADDED        ← Guest details validated and persisted
+         │
+  [POST /bookings/{id}/payments]
+         │
+         ▼
+  PAYMENT_PENDING       ← Stripe checkout session created; awaiting payment
+         │
+  [Stripe Webhook]
+         │
+         ├──── Success ──────▶  CONFIRMED    ← reservedCount → bookedCount in inventory
+         │
+         └──── [POST /bookings/{id}/cancel]
+                                CANCELLED    ← bookedCount decremented; Stripe refund initiated
+```
+
+---
+
+## Security Design
+
+### JWT Authentication
+- **Access Token**: 10-minute expiration — used for all API requests
+- **Refresh Token**: 6-month expiration — used to obtain a new access token without re-login
+- **Token Claims**: User ID (subject), email, roles
+- **Algorithm**: HMAC-SHA (configured via `jwt.secretKey`)
+
+### Request Filter Chain
+Every HTTP request passes through `JWTAuthFilter`:
+1. Extracts Bearer token from `Authorization` header
+2. Validates signature, expiry, and claims
+3. Populates `SecurityContextHolder` with user details
+4. On failure, delegates to `HandlerExceptionResolver` for a structured error response
+
+### Role-Based Access Control (RBAC)
+
+| Route Pattern | Required Role |
+
+| `/api/v1/admin/**` | `ROLE_HOTEL_MANAGER` |
+| `/api/v1/bookings/**` | Any authenticated user |
+| `/api/v1/users/**` | Any authenticated user |
+| `/api/v1/auth/**` | Public |
+| `/api/v1/hotels/**` (browse) | Public |
+
+### Additional Security Measures
+- **BCrypt** password hashing for stored passwords
+- **Stripe webhook signature validation** — prevents spoofed payment events
+- **Ownership validation** — users can only access/modify their own bookings; managers can only manage their own hotels
+- **Stateless sessions** — no server-side session storage (CSRF disabled)
+
+---
+
+## Database Design
+
+### Core Entities
+
+| Entity | Purpose |
+
+| `User` | Registered users — both Guests and Hotel Managers |
+| `Hotel` | Hotel properties owned by a Manager |
+| `Room` | Room types within a hotel (Single, Double, Suite, etc.) |
+| `Inventory` | Daily room availability, pricing, and booking counts per room |
+| `Booking` | Customer reservation linking User, Hotel, Room, and Guests |
+| `Guest` | Individual guests within a booking |
+| `HotelMinPrice` | Denormalized minimum price per hotel per date for fast search |
+| `HotelContactInfo` | Embedded contact details (address, email, phone, location) |
+
+### Key Design Decisions
+
+- **`HotelMinPrice` table**: Pre-aggregated minimum prices eliminate expensive `GROUP BY` joins during hotel search, enabling efficient paginated queries.
+- **Pessimistic Write Lock** on `Inventory`: Prevents two concurrent bookings from over-reserving the same room slots.
+- **Unique constraint** on `(hotel_id, room_id, date)` in `Inventory`: Ensures one inventory record per room per day.
+- **Atomic `@Modifying` queries**: Inventory counts (`reservedCount`, `bookedCount`) are updated atomically at the DB level, not in-memory, to prevent data inconsistency.
+
+### Inventory Counters (per room per day)
+
+```
+totalCount    = Total physical rooms available
+reservedCount = Rooms currently in RESERVED/PAYMENT_PENDING state
+bookedCount   = Rooms in CONFIRMED bookings
+closed        = Flag to block the date from any booking
+```
+
+Available rooms = `totalCount - bookedCount - reservedCount`
+
+---
+
+## API Endpoints
+
+> Full interactive documentation available at: `http://localhost:8080/swagger-ui.html`
+
+### Authentication (`/api/v1/auth`)
+
+| Method | Endpoint | Description | Auth Required |
+
+| POST | `/auth/signup` | Register a new user | No |
+| POST | `/auth/login` | Login and receive access + refresh tokens | No |
+| POST | `/auth/refresh` | Get a new access token using refresh token | No |
+
+### Hotel Browse (`/api/v1`)
+
+| Method | Endpoint | Description | Auth Required |
+
+| GET | `/hotels/search` | Search hotels by city, dates, and room count | No |
+| GET | `/hotels/{id}/info` | Get full hotel details with rooms and pricing | No |
+
+### Booking (`/api/v1/bookings`)
+
+| Method | Endpoint | Description | Auth Required |
+
+| POST | `/bookings/init` | Initialize booking and reserve inventory | Yes |
+| POST | `/bookings/{id}/addGuests` | Add guest details to a booking | Yes |
+| POST | `/bookings/{id}/payments` | Create Stripe checkout session | Yes |
+| POST | `/bookings/{id}/cancel` | Cancel booking and trigger refund | Yes |
+| GET | `/bookings/{id}/status` | Get current booking status | Yes |
+
+### Hotel Admin (`/api/v1/admin/hotels`) — `ROLE_HOTEL_MANAGER` only
+
+| Method | Endpoint | Description |
+
+| POST | `/admin/hotels` | Create a new hotel |
+| GET | `/admin/hotels` | List all hotels managed by current user |
+| GET | `/admin/hotels/{id}` | Get hotel details |
+| PUT | `/admin/hotels/{id}` | Update hotel info |
+| DELETE | `/admin/hotels/{id}` | Delete hotel (cascades to rooms and inventory) |
+| PATCH | `/admin/hotels/{id}/activate` | Publish / activate hotel |
+| POST | `/admin/hotels/{hotelId}/rooms` | Add a room to a hotel |
+| GET | `/admin/hotels/{hotelId}/rooms` | List all rooms in a hotel |
+| GET | `/admin/hotels/{hotelId}/rooms/{roomId}` | Get room details |
+| PUT | `/admin/hotels/{hotelId}/rooms/{roomId}` | Update room details |
+| DELETE | `/admin/hotels/{hotelId}/rooms/{roomId}` | Delete a room |
+| GET | `/admin/hotels/{id}/bookings` | View all bookings for a hotel |
+| GET | `/admin/hotels/{id}/reports` | Revenue report for a date range |
+
+### Inventory Admin (`/api/v1/admin/inventory`) — `ROLE_HOTEL_MANAGER` only
+
+| Method | Endpoint | Description |
+
+| GET | `/admin/inventory/rooms/{roomId}` | View daily inventory for a room |
+| PATCH | `/admin/inventory/rooms/{roomId}` | Update surge factor or close specific dates |
+
+### Webhook (`/webhook`)
+
+| Method | Endpoint | Description |
+
+| POST | `/webhook/payment` | Stripe webhook for payment confirmation |
+
+---
+
+## Design Patterns Used
+
+| Pattern | Where Applied |
+|---|---|
+| **Decorator** | Dynamic pricing — each strategy wraps the previous one |
+| **Strategy** | Interchangeable pricing algorithms (Surge, Occupancy, Urgency, Holiday) |
+| **Builder** | All JPA entities and DTOs via Lombok `@Builder` |
+| **DTO (Data Transfer Object)** | Clean separation between API layer and persistence layer using ModelMapper |
+| **Repository** | Data access abstraction via Spring Data JPA interfaces |
+| **State Machine** | Booking lifecycle with enforced state transitions |
+| **Global Exception Handler** | Centralized error handling via `@ControllerAdvice` |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Java 17 or higher
+- PostgreSQL 14+
+- Maven 3.8+
+- A [Stripe account](https://dashboard.stripe.com) (test mode is sufficient)
+
+### Setup Steps
+
+**1. Clone the repository**
+```bash
+git clone https://github.com/your-username/HotelHub.git
+cd HotelHub
+```
+
+**2. Create the PostgreSQL database**
+```sql
+CREATE DATABASE HotelHub;
+```
+
+**3. Configure `application.properties`**
+
+Open `src/main/resources/application.properties` and fill in the values described in the [Configuration](#configuration) section below.
+
+**4. Run the application**
+```bash
+mvn spring-boot:run
+```
+
+**5. Access Swagger UI**
+
+Open your browser and navigate to:
+```
+http://localhost:8080/swagger-ui.html
+```
+
+**6. Set up Stripe Webhook (for local testing)**
+
+Install the [Stripe CLI](https://stripe.com/docs/stripe-cli) and forward events to your local server:
+```bash
+stripe listen --forward-to http://localhost:8080/webhook/payment
+```
+Copy the webhook secret printed by the CLI and set it as `stripe.webhookSecret` in your properties.
+
+---
 
 
-//decorator design pattern has ctrreated for thr pricing strategies
-and also i have schedule the job after 1 hour
 
-also we have changed the search api
-GET http://localhost:8080/api/v1/hotels/search
-
-
-SPRING SECURITY
-1. JWTService is almost same.
-
-//REST API
-SIGNUP
-POST http://localhost:8080/api/v1/auth/signup
-{
-"name":"Supreet",
-"email":"Supreet@gmail.com",
-"password":"password"
-}
-
-//LOGIN
-POST http://localhost:8080/api/v1/auth/login
-{
-"email":"Supreet@gmail.com",
-"password":"password"
-}
-//we get the access token in the response of login..check the decode in jwt.io
-
-now handling the exceptions
-gave the owner id as same id in app_user in hotel manually
-
-NOW initialize the booling
-POST http://localhost:8080/api/v1/bookings/init
-
-{
-"hotelId":1,
-"roomId":1,
-"checkInDate":"2026-01-21",
-"checkOutDate":"2026-01-23",
-"roomsCount":2
-}
-
-//REFRESH TOKEN (make sure there is refresh token something in localhost in cookies)
-POST http://localhost:8080/api/v1/auth/refresh
-
-//Payment system (stripe)
-https://docs.stripe.com/payments/checkout/how-checkout-works
-i have created the account in stripe.
-take the secret key from https://dashboard.stripe.com/acct_1Snw5iKIowOaoyGO/test/apikeys
-
-after implementing the payment code, now check it:
-Step 1: login
-POST http://localhost:8080/api/v1/auth/login
-{
-"email":"Supreet@gmail.com",
-"password":"password"
-}
-copy the access token and then go to the init booking, in authorisation paste the bearer token
-
-Step 2: init booking
-POST http://localhost:8080/api/v1/bookings/init
-{
-"hotelId":1,
-"roomId":1,
-"checkInDate":"2026-01-21",
-"checkOutDate":"2026-01-23",
-"roomsCount":2
-}
-
-in the data we get the booking id.in the above, we get the id as 2
-{
-"timeStamp": "2026-01-10T17:54:55.5019788",
-"data": {
-"id": 2,
-"roomsCount": 2,
-"checkInDate": "2026-01-21",
-"checkOutDate": "2026-01-23",
-"createdAt": "2026-01-10T17:54:55.024323",
-"updatedAt": "2026-01-10T17:54:55.024323",
-"bookingStatus": "RESERVED",
-"guests": null
-},
-"error": null
-}
-
-STEP 3: ADD GUESTS
-dont forget to add the bearer token
-POST http://localhost:8080/api/v1/bookings/2/addGuests (put the id 2 in the url of add guests)
-[
-{
-"name":"Ram",
-"gender":"MALE",
-"age":20
-},
-{
-"name":"Shyam",
-"gender":"MALE",
-"age":25
-}
-]
-
-output:
-{
-"timeStamp": "2026-01-10T17:59:29.8606911",
-"data": {
-"id": 2,
-"roomsCount": 2,
-"checkInDate": "2026-01-21",
-"checkOutDate": "2026-01-23",
-"createdAt": "2026-01-10T17:54:55.024323",
-"updatedAt": "2026-01-10T17:54:55.024323",
-"bookingStatus": "GUESTS_ADDED",
-"guests": [
-{
-"id": 2,
-"user": {
-"id": 1,
-"email": "Supreet@gmail.com",
-"password": "$2a$10$a/gpBRQcqSaRNBRo7p.2PusteiUXonkry7pQySiF//gP72Tohc4a2",
-"name": "Supreet",
-"roles": [
-"GUEST"
-],
-"authorities": [
-{
-"authority": "ROLE_GUEST"
-}
-],
-"username": "Supreet@gmail.com",
-"enabled": true,
-"credentialsNonExpired": true,
-"accountNonExpired": true,
-"accountNonLocked": true
-},
-"name": "Shyam",
-"gender": "MALE",
-"age": 25
-},
-{
-"id": 1,
-"user": {
-"id": 1,
-"email": "Supreet@gmail.com",
-"password": "$2a$10$a/gpBRQcqSaRNBRo7p.2PusteiUXonkry7pQySiF//gP72Tohc4a2",
-"name": "Supreet",
-"roles": [
-"GUEST"
-],
-"authorities": [
-{
-"authority": "ROLE_GUEST"
-}
-],
-"username": "Supreet@gmail.com",
-"enabled": true,
-"credentialsNonExpired": true,
-"accountNonExpired": true,
-"accountNonLocked": true
-},
-"name": "Ram",
-"gender": "MALE",
-"age": 20
-}
-]
-},
-"error": null
-}
-
-STEP 4:INIT PAYMENT
-POST http://localhost:8080/api/v1/bookings/2/payments (put the id 2 in the url of init payment)
-
-in the output, we get the sessionUrl..we can copy paste in google to see the interface
-interface will open, fill the card information 4242 4242 4242  and other details
-and click on pay button
-we dont have frontend url so it will redirect to backend url
-but we can see our transaction in https://dashboard.stripe.com/test/payments
-
-installed the stripe cli
-open the windows powershell
-
-step 1:stripe --version
-step 2:stripe login
-        it will generate a link...go to that link
-        click on allow access
-
-we have to run the cli and keep  the cli running in order to listening all teh webhook and send the webhook 
-event to the server.
-to do this: run stripe listen --forward-to localhost:8080/api/v1/webhook/payment
-when we run this, we get a webhook secret..copy that and paste it in application.properties
-stripe.webhook.secret= whsec_2a8b7fcf8d6e4a85e5b7797b49fb4311cd1d9c456984dab447d3d3de0a4091c5
-
-now create the webhook controller
-
-booking confirmed is implemented ..we can see in the database
-steps:
-1. Log in
-2. Init Booking
-3. Add guests
-4. Init Payments
-5. Cancel booking
-   for cancel booking
-    POST http://localhost:8080/api/v1/bookings/13/cancel (bearer token from login)
-
-Now we will make an api through which client know the status of booking (we have to implement polling mechanism)
-Our frontend can keep calling the api in order to get the current status. Once the status is marked as confirmed, 
-frontend can redirect the user to some other page.
-
-creating the admin apis
-
-1. GetAllHotels
-GET http://localhost:8080/api/v1/admin/hotels (having the role of HOTEL_MANAGER)
-
-2. Get All Bookings
-GET http://localhost:8080/api/v1/admin/hotels/1/bookings
-
-3. Generate Report
-GET http://localhost:8080/api/v1/admin/hotels/1/reports
-
-4. Update room by id
-PUT http://localhost:8080/api/v1/admin/hotels/1/rooms/1
-
-{
-"type":"Economical Room",
-"basePrice":80.00,
-"capacity":2,
-"totalCount":60,
-"amenities":["WiFi", "Air Conditioning"],
-"photos": ["http://via.placeholder.com/50","http://via.placeholder.com/150"]
-}
-
-5. Get Inventory By Room Id
-GET http://localhost:8080/api/v1/admin/inventory/rooms/1
-
-6. Update inventory
-PATCH http://localhost:8080/api/v1/admin/inventory/rooms/1
-   {
-   "startDate":"2026-01-05",
-   "endDate":"2026-01-07",
-   "surgeFactor":1.5,
-   "closed":true
-   }
-
-Profile APIs
-
-1. Update My Profile
-PATCH http://localhost:8080/api/v1/users/profile
-
-{
-"name":"Supreet Kumar",
-"dateOfBirth":"2000-10-10",
-"gender":"MALE"
-}
-
-2. Get My Profile
-GET http://localhost:8080/api/v1/users/profile
-
-3. Add a guest
-POST http://localhost:8080/api/v1/users/guests
-
-{
-"name":"HarsH",
-"gender":"MALE",
-"age":23
-}
-
-4. Update guest By Id
-PUT http://localhost:8080/api/v1/users/guests/27
-   {
-
-   "name":"Harshit",
-   "gender":"MALE",
-   "age":24
-   }
-
-5. Delete guest By Id
-DELETE http://localhost:8080/api/v1/users/guests/27
-
-6. Get all my guests
-GET http://localhost:8080/api/v1/users/guests
-
-swagger api
-added the dependency and hit the url below:
-http://localhost:8080/api/v1/swagger-ui/index.html#/
