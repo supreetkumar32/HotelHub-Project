@@ -7,6 +7,7 @@ import com.hotelbooking.projects.HotelHub.entity.RevokedToken;
 import com.hotelbooking.projects.HotelHub.entity.User;
 import com.hotelbooking.projects.HotelHub.entity.enums.Role;
 import com.hotelbooking.projects.HotelHub.exception.ResourceNotFoundException;
+import com.hotelbooking.projects.HotelHub.exception.UnAuthorisedException;
 import com.hotelbooking.projects.HotelHub.repository.RevokedTokenRepository;
 import com.hotelbooking.projects.HotelHub.repository.UserRepository;
 import jakarta.servlet.http.Cookie;
@@ -65,7 +66,7 @@ public class AuthService {
 
     public String refreshToken(String refreshToken) {
         if (revokedTokenRepository.existsByToken(refreshToken)) {
-            throw new RuntimeException("Refresh token has been revoked. Please login again.");
+            throw new UnAuthorisedException("Refresh token has been revoked. Please login again.");
         }
 
         Long id = jwtService.getUserIdFromToken(refreshToken);

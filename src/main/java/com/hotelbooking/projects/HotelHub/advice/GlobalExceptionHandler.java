@@ -1,6 +1,7 @@
 package com.hotelbooking.projects.HotelHub.advice;
 
 import com.hotelbooking.projects.HotelHub.exception.ResourceNotFoundException;
+import com.hotelbooking.projects.HotelHub.exception.UnAuthorisedException;
 import io.jsonwebtoken.JwtException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,6 +44,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<?>> handleAccessDeniedException(AccessDeniedException ex) {
         ApiError apiError = ApiError.builder()
                 .status(HttpStatus.FORBIDDEN)
+                .message(ex.getMessage())
+                .build();
+        return buildErrorResponseEntity(apiError);
+    }
+
+    @ExceptionHandler(UnAuthorisedException.class)
+    public ResponseEntity<ApiResponse<?>> handleUnauthorisedException(UnAuthorisedException ex) {
+        ApiError apiError = ApiError.builder()
+                .status(HttpStatus.UNAUTHORIZED)
                 .message(ex.getMessage())
                 .build();
         return buildErrorResponseEntity(apiError);
