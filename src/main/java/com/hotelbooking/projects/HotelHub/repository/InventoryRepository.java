@@ -122,6 +122,18 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     @Modifying
     @Query("""
                 UPDATE Inventory i
+                SET i.reservedCount = GREATEST(i.reservedCount - :numberOfRooms, 0)
+                WHERE i.room.id = :roomId
+                  AND i.date BETWEEN :startDate AND :endDate
+            """)
+    void releaseReservation(@Param("roomId") Long roomId,
+                            @Param("startDate") LocalDate startDate,
+                            @Param("endDate") LocalDate endDate,
+                            @Param("numberOfRooms") int numberOfRooms);
+
+    @Modifying
+    @Query("""
+                UPDATE Inventory i
                 SET i.surgeFactor = :surgeFactor,
                     i.closed = :closed
                 WHERE i.room.id = :roomId

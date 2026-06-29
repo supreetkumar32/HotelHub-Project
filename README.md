@@ -48,6 +48,7 @@ The system implements a **dynamic pricing engine** that adjusts room prices in r
 
 ### System / Background
 - Hourly Spring Scheduler cron job recalculates dynamic prices for all hotels in batches
+- Every-10-minute cron job releases inventory from expired unpaid bookings and marks them `EXPIRED`
 - Stripe webhook listener captures payment confirmation and drives booking state
 - Pessimistic locking on inventory prevents race conditions during concurrent bookings
 - Pre-aggregated `HotelMinPrice` table enables fast hotel search without complex joins
@@ -130,6 +131,7 @@ flowchart TD
 
     subgraph Scheduler
         Cron[PricingUpdateService\nCron Every Hour\nBatch 100 hotels]
+        Cleanup[BookingCleanupService\nCron Every 10 Min\nRelease Expired Reservations]
     end
 
     subgraph Repositories
@@ -156,6 +158,8 @@ flowchart TD
     InvSvc --> PricingEngine
     Cron --> PricingEngine
     Cron --> InvSvc
+    Cleanup -->|releaseReservation| Repos
+    Cleanup -->|mark EXPIRED| Repos
     PricingEngine --> HolidaySvc
 
     AuthSvc & BookingSvc & HotelSvc & InvSvc --> Repos
@@ -235,13 +239,31 @@ Every booking moves through a well-defined state machine enforced at the service
          ▼
   PAYMENT_PENDING       ← Stripe checkout session created; awaiting payment
          │
-  [Stripe Webhook]
+         ├──── [Stripe Webhook - Success] ──▶  CONFIRMED    ← reservedCount → bookedCount in inventory
+         │                                          │
+         │                               [POST /bookings/{id}/cancel]
+         │                                          │
+         │                                          ▼
+         │                                      CANCELLED    ← bookedCount decremented; Stripe refund initiated
          │
-         ├──── Success ──────▶  CONFIRMED    ← reservedCount → bookedCount in inventory
-         │
-         └──── [POST /bookings/{id}/cancel]
-                                CANCELLED    ← bookedCount decremented; Stripe refund initiated
+         └──── [BookingCleanupService - every 10 min]
+              If createdAt > 100 min ago and status is
+              RESERVED / GUESTS_ADDED / PAYMENT_PENDING
+                         │
+                         ▼
+                      EXPIRED    ← reservedCount decremented; inventory freed automatically
 ```
+
+### Booking Status Reference
+
+| Status | Set By | Inventory Effect |
+|---|---|---|
+| `RESERVED` | `POST /bookings/init` | `reservedCount += roomsCount` |
+| `GUESTS_ADDED` | `POST /bookings/{id}/addGuests` | No change |
+| `PAYMENT_PENDING` | `POST /bookings/{id}/payments` | No change |
+| `CONFIRMED` | Stripe Webhook | `reservedCount -= roomsCount`, `bookedCount += roomsCount` |
+| `CANCELLED` | `POST /bookings/{id}/cancel` | `bookedCount -= roomsCount` |
+| `EXPIRED` | `BookingCleanupService` (cron) | `reservedCount -= roomsCount` |
 
 ---
 
