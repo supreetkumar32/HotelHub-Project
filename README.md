@@ -207,6 +207,123 @@ Every HTTP request passes through `JWTAuthFilter`:
 | `HotelMinPrice` | Denormalized minimum price per hotel per date for fast search |
 | `HotelContactInfo` | Embedded contact details (address, email, phone, location) |
 
+### Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    app_user {
+        BIGINT id PK
+        VARCHAR email UK
+        VARCHAR password
+        VARCHAR name
+        DATE dateOfBirth
+        VARCHAR gender
+    }
+
+    user_roles {
+        BIGINT user_id FK
+        VARCHAR role
+    }
+
+    hotel {
+        BIGINT id PK
+        VARCHAR name
+        VARCHAR city
+        TEXT[] photos
+        TEXT[] amenities
+        BOOLEAN active
+        VARCHAR contact_address
+        VARCHAR contact_phone
+        VARCHAR contact_email
+        VARCHAR contact_location
+        TIMESTAMP createdAt
+        TIMESTAMP updatedAt
+        BIGINT owner_id FK
+    }
+
+    room {
+        BIGINT id PK
+        VARCHAR type
+        DECIMAL basePrice
+        INT totalCount
+        INT capacity
+        TEXT[] photos
+        TEXT[] amenities
+        TIMESTAMP createdAt
+        TIMESTAMP updatedAt
+        BIGINT hotel_id FK
+    }
+
+    inventory {
+        BIGINT id PK
+        DATE date
+        INT totalCount
+        INT bookedCount
+        INT reservedCount
+        DECIMAL surgeFactor
+        DECIMAL price
+        VARCHAR city
+        BOOLEAN closed
+        TIMESTAMP createdAt
+        TIMESTAMP updatedAt
+        BIGINT hotel_id FK
+        BIGINT room_id FK
+    }
+
+    booking {
+        BIGINT id PK
+        INT roomsCount
+        DATE checkInDate
+        DATE checkOutDate
+        VARCHAR bookingStatus
+        DECIMAL amount
+        VARCHAR paymentSessionId UK
+        TIMESTAMP createdAt
+        TIMESTAMP updatedAt
+        BIGINT hotel_id FK
+        BIGINT room_id FK
+        BIGINT user_id FK
+    }
+
+    booking_guest {
+        BIGINT booking_id FK
+        BIGINT guest_id FK
+    }
+
+    guest {
+        BIGINT id PK
+        VARCHAR name
+        VARCHAR gender
+        INT age
+        BIGINT user_id FK
+    }
+
+    hotel_min_price {
+        BIGINT id PK
+        DATE date
+        DECIMAL price
+        TIMESTAMP createdAt
+        TIMESTAMP updatedAt
+        BIGINT hotel_id FK
+    }
+
+    app_user ||--o{ user_roles       : "has roles"
+    app_user ||--o{ hotel            : "owns"
+    app_user ||--o{ booking          : "makes"
+    app_user ||--o{ guest            : "associated with"
+
+    hotel    ||--o{ room             : "has"
+    hotel    ||--o{ inventory        : "tracks daily availability"
+    hotel    ||--o{ booking          : "receives"
+    hotel    ||--o{ hotel_min_price  : "aggregated min price"
+
+    room     ||--o{ inventory        : "has daily slots"
+    room     ||--o{ booking          : "booked via"
+
+    booking  ||--o{ booking_guest    : "has"
+    guest    ||--o{ booking_guest    : "belongs to"
+```
+
 ### Key Design Decisions
 
 - **`HotelMinPrice` table**: Pre-aggregated minimum prices eliminate expensive `GROUP BY` joins during hotel search, enabling efficient paginated queries.
