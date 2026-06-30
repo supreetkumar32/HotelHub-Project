@@ -488,7 +488,7 @@ Available rooms = `totalCount - bookedCount - reservedCount`
 | POST | `/bookings/init` | Initialize booking and reserve inventory | Yes |
 | POST | `/bookings/{id}/addGuests` | Add guest details to a booking | Yes |
 | POST | `/bookings/{id}/payments` | Create Stripe checkout session | Yes |
-| POST | `/bookings/{id}/cancel` | Cancel booking and trigger refund | Yes |
+| POST | `/bookings/{id}/cancel` | Cancel booking and trigger Stripe refund | Yes |
 | GET | `/bookings/{id}/status` | Get current booking status | Yes |
 
 ### Hotel Admin (`/api/v1/admin/hotels`) — `ROLE_HOTEL_MANAGER` only
@@ -516,11 +516,21 @@ Available rooms = `totalCount - bookedCount - reservedCount`
 | GET | `/admin/inventory/rooms/{roomId}` | View daily inventory for a room |
 | PATCH | `/admin/inventory/rooms/{roomId}` | Update surge factor or close specific dates |
 
+### User (`/api/v1/users`)
+
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| GET | `/users/profile` | Get current user profile | Yes |
+| PATCH | `/users/profile` | Update profile (name, DOB, gender) | Yes |
+| GET | `/users/myBookings` | Get all bookings for current user | Yes |
+| GET | `/users/guests` | Get all saved guests for current user | Yes |
+| POST | `/users/guests` | Add a new guest profile | Yes |
+
 ### Webhook (`/webhook`)
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/webhook/payment` | Stripe webhook for payment confirmation |
+| POST | `/webhook/payment` | Stripe webhook — payment success/failure events |
 
 ---
 
@@ -528,13 +538,13 @@ Available rooms = `totalCount - bookedCount - reservedCount`
 
 | Pattern | Where Applied |
 |---|---|
-| **Decorator** | Dynamic pricing — each strategy wraps the previous one |
-| **Strategy** | Interchangeable pricing algorithms (Surge, Occupancy, Urgency, Holiday) |
-| **Builder** | All JPA entities and DTOs via Lombok `@Builder` |
-| **DTO (Data Transfer Object)** | Clean separation between API layer and persistence layer using ModelMapper |
-| **Repository** | Data access abstraction via Spring Data JPA interfaces |
-| **State Machine** | Booking lifecycle with enforced state transitions |
-| **Global Exception Handler** | Centralized error handling via `@ControllerAdvice` |
+| **Decorator** | Dynamic pricing — each strategy wraps the previous one (`BasePricingStrategy` → `SurgePricingStrategy` → `OccupancyPricingStrategy` → `UrgencyPricingStrategy` → `HolidayPricingStrategy`) |
+| **Strategy** | Interchangeable pricing algorithms implementing a common `PricingStrategy` interface |
+| **Builder** | All JPA entities and DTOs via Lombok `@Builder` / `@Data` |
+| **DTO (Data Transfer Object)** | Clean separation between API layer and persistence layer; ModelMapper handles conversions |
+| **Repository** | Data access abstraction via Spring Data JPA interfaces with custom JPQL queries |
+| **State Machine** | Booking lifecycle with enforced transitions (`RESERVED → GUESTS_ADDED → PAYMENT_PENDING → CONFIRMED/CANCELLED/EXPIRED`) |
+| **Global Exception Handler** | `@RestControllerAdvice` centralizes all error handling into structured `ApiResponse<ApiError>` responses |
 
 ---
 
@@ -557,12 +567,12 @@ cd HotelHub
 
 **2. Create the PostgreSQL database**
 ```sql
-CREATE DATABASE HotelHub;
+CREATE DATABASE "HotelHub";
 ```
 
 **3. Configure `application.properties`**
 
-Open `src/main/resources/application.properties` and fill in the values described in the [Configuration](#configuration) section below.
+Fill in the required values described in the [Configuration](#configuration) section below.
 
 **4. Run the application**
 ```bash
@@ -570,21 +580,38 @@ mvn spring-boot:run
 ```
 
 **5. Access Swagger UI**
-
-Open your browser and navigate to:
 ```
-http://localhost:8080/swagger-ui.html
+http://localhost:8080/api/v1/swagger-ui.html
 ```
 
 **6. Set up Stripe Webhook (for local testing)**
 
 Install the [Stripe CLI](https://stripe.com/docs/stripe-cli) and forward events to your local server:
 ```bash
-stripe listen --forward-to http://localhost:8080/webhook/payment
+stripe listen --forward-to http://localhost:8080/api/v1/webhook/payment
 ```
-Copy the webhook secret printed by the CLI and set it as `stripe.webhookSecret` in your properties.
+Copy the webhook signing secret printed by the CLI and set it as `stripe.webhook.secret`.
 
 ---
+
+## Configuration
+
+All configuration lives in `src/main/resources/application.properties`:
+
+| Property | Description | Example |
+|---|---|---|
+| `spring.datasource.url` | PostgreSQL connection URL | `jdbc:postgresql://localhost:5432/HotelHub` |
+| `spring.datasource.username` | DB username | `postgres` |
+| `spring.datasource.password` | DB password | `yourpassword` |
+| `spring.jpa.hibernate.ddl-auto` | Schema management (`update` for dev, `validate` for prod) | `update` |
+| `jwt.secretKey` | HMAC-SHA secret for signing JWTs — must be ≥ 256 bits | `your-256-bit-secret` |
+| `stripe.secret.key` | Stripe API secret key (from Stripe Dashboard) | `sk_test_...` |
+| `stripe.webhook.secret` | Stripe webhook signing secret (from Stripe CLI or Dashboard) | `whsec_...` |
+| `frontend.url` | Redirect URL after Stripe checkout completes | `http://localhost:3000` |
+
+---
+
+
 
 
 
